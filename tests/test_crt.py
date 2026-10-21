@@ -34,6 +34,42 @@ def test_windrun_distance_units(units,speed,expected):
     assert crt.calc_windrun(archive,1700049600,units) == pytest.approx(expected)
 
 
+def test_recent_direction_crosses_north_and_ignores_calm():
+    archive = Archive()
+    end = 1700049600
+    archive.add(end,10,359)
+    archive.add(end-300,10,1)
+    archive.add(end-100,0,180)
+    archive.add(end-600,100,180)
+    for average in [crt.calc_avg_winddir, crt.calc_avg_winddir_10min]:
+        assert average(archive,end) % 360 == pytest.approx(0, abs=1e-10)
+    calm = Archive()
+    calm.add(end,0,270)
+    assert crt.calc_avg_winddir_10min(calm,end) is None
+
+
+@pytest.mark.parametrize('date', ['2026-03-30','2026-10-26'])
+def test_yesterday_rain_follows_local_day_across_dst(monkeypatch,date):
+    old_tz = os.environ.get('TZ')
+    monkeypatch.setenv('TZ','Europe/Berlin')
+    time.tzset()
+    try:
+        end = int(time.mktime(time.strptime(date+' 12:00','%Y-%m-%d %H:%M')))
+        today = crt.weeutil.weeutil.startOfDay(end)
+        yesterday = crt.weeutil.weeutil.startOfDay(today-1)
+        archive = Archive()
+        for stamp in [yesterday-1800,yesterday+1800,today-1800,today+1800]:
+            archive.add(stamp,0)
+            archive.connection.execute('UPDATE archive SET rain=1 WHERE dateTime=?',(stamp,))
+        assert crt.calc_rain_yesterday(archive,end) == 2
+    finally:
+        if old_tz is None:
+            os.environ.pop('TZ',None)
+        else:
+            os.environ['TZ'] = old_tz
+        time.tzset()
+
+
 def test_numeric_versions_accept_beta_of_newer_release():
     assert crt._version_key('5.2.0b1') > crt._version_key('3.5.0')
     assert crt._version_key('10.0') > crt._version_key('3.5.0')

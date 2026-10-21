@@ -1,3 +1,6 @@
+2026-10-22  0.24.1
+  Correct vector wind direction across north, ignore calm direction samples, and use the local calendar day for yesterday rain across DST transitions.
+
 0.23 11feb2024
 * use maxSolarRad instead of max_rad (thanks to xslima00)
 

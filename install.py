@@ -11,7 +11,7 @@ def loader():
 class CRTInstaller(ExtensionInstaller):
     def __init__(self):
         super(CRTInstaller, self).__init__(
-            version="0.24.0",
+            version="0.24.1",
             name='crt',
             description='Emit a Cumulus realtime.txt for LOOP data.',
             author="Matthew Wall",

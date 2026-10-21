@@ -41,5 +41,53 @@
       "exit_code": 1,
       "observed_failure": "E       assert 9.0 == 5\nFAILED tests/test_crt.py::test_realmore_has_pressure_extrema_and_sixteen_wind_bins"
     }
-  ]
+  ],
+  "independent_review_2026_10_22": {
+    "upstream_refs": {
+      "master": "e0a863062aa957fd8a4b0c5c8484d6530bbf0f4c",
+      "development": "06b5ffb3335417132d7527e738e7eea9769c46bf"
+    },
+    "environments": [
+      {
+        "environment": "master-py310",
+        "exit_code": 0,
+        "summary": "11 passed in 0.10s"
+      },
+      {
+        "environment": "master-py314",
+        "exit_code": 0,
+        "summary": "11 passed in 0.05s"
+      },
+      {
+        "environment": "development-py310",
+        "exit_code": 0,
+        "summary": "11 passed in 0.10s"
+      },
+      {
+        "environment": "development-py314",
+        "exit_code": 0,
+        "summary": "11 passed in 0.09s"
+      }
+    ],
+    "mutations": [
+      {
+        "mutation": "direction-scalar",
+        "test": "tests/test_crt.py::test_recent_direction_crosses_north_and_ignores_calm",
+        "detected": true,
+        "failure_summary": "1 failed in 0.03s",
+        "restored_exit_code": 0
+      },
+      {
+        "mutation": "yesterday-24h",
+        "test": "tests/test_crt.py::test_yesterday_rain_follows_local_day_across_dst",
+        "detected": true,
+        "failure_summary": "2 failed in 0.03s",
+        "restored_exit_code": 0
+      }
+    ],
+    "limits": [
+      "No external account, live API, hardware or renderer certification."
+    ],
+    "previous_release_unchanged": true
+  }
 }

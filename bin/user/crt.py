@@ -83,6 +83,7 @@ from a number of live Cumulus sites:
 from __future__ import absolute_import
 import time
 import re
+import math
 
 import weewx
 import weewx.almanac
@@ -92,7 +93,7 @@ import weeutil.weeutil
 import weedb
 from weewx.engine import StdService
 
-VERSION = "0.24.0"
+VERSION = "0.24.1"
 
 def _version_key(value):
     """Return a release tuple with prereleases before the final release.
@@ -237,12 +238,20 @@ def calc_avg_windspeed(dbm, ts, interval=600):
     return val[0] if val is not None else None
 
 def calc_avg_winddir(dbm, ts, interval=600):
-    # FIXME: This calculates the scalar average, not the vector average, wind direction. Not what we want.
     sts = ts - interval
-    val = dbm.getSql("SELECT AVG(windDir) FROM %s "
-                     "WHERE dateTime>? AND dateTime<=?" % dbm.table_name,
-                     (sts, ts))
-    return clamp_degrees(val[0]) if val is not None else None
+    east = north = weight = 0.0
+    for direction, speed, duration in dbm.genSql(
+            "SELECT windDir,windSpeed,`interval` FROM %s "
+            "WHERE dateTime>? AND dateTime<=?" % dbm.table_name, (sts, ts)):
+        if direction is None or speed is None or duration is None or speed <= 0:
+            continue
+        magnitude = speed * duration
+        east += math.sin(math.radians(direction)) * magnitude
+        north += math.cos(math.radians(direction)) * magnitude
+        weight += magnitude
+    if weight == 0 or math.hypot(east, north) <= weight * 1e-12:
+        return None
+    return clamp_degrees(round(math.degrees(math.atan2(east, north)) % 360, 10))
 
 def calc_max_gust_10min(dbm, ts):
     sts = ts - 600
@@ -252,12 +261,7 @@ def calc_max_gust_10min(dbm, ts):
     return val[0] if val is not None else None
 
 def calc_avg_winddir_10min(dbm, ts):
-    sts = ts - 600
-    # FIXME: This calculates the scalar average, not the vector average, wind direction. Not what we want.
-    val = dbm.getSql("SELECT AVG(windDir) FROM %s "
-                     "WHERE dateTime>? AND dateTime<=?" % dbm.table_name,
-                     (sts, ts))
-    return clamp_degrees(val[0]) if val is not None else None
+    return calc_avg_winddir(dbm, ts, 600)
 
 def calc_windrun(dbm, ts, db_us):
     """Calculate windrun since midnight.  returns a value in the distance units
@@ -315,7 +319,7 @@ def calc_rain_year(dbm, ts):
 
 def calc_rain_yesterday(dbm, ts):
     ts = weeutil.weeutil.startOfDay(ts)
-    sts = ts - 3600 * 24
+    sts = weeutil.weeutil.startOfDay(ts - 1)
     val = dbm.getSql("SELECT SUM(rain) FROM %s "
                      "WHERE dateTime>? AND dateTime<=?" % dbm.table_name,
                      (sts, ts))
