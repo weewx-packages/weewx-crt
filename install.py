@@ -1,3 +1,4 @@
+# Modified 2026-10-22 by weewx-packages: compatibility and tracker repairs.
 # installer for crt
 # Copyright 2014-2024 Matthew Wall
 # Distributed under the terms of the GNU Public License (GPLv3)
@@ -10,7 +11,7 @@ def loader():
 class CRTInstaller(ExtensionInstaller):
     def __init__(self):
         super(CRTInstaller, self).__init__(
-            version="0.23",
+            version="0.24.0",
             name='crt',
             description='Emit a Cumulus realtime.txt for LOOP data.',
             author="Matthew Wall",

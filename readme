@@ -19,7 +19,7 @@ Installation
 
 1) install the extension
 
-  weectl extension install https://github.com/matthewwall/weewx-crt/archive/master.zip
+  weectl extension install https://github.com/weewx-packages/weewx-crt/archive/master.zip
 
 2) restart weewx
 
@@ -64,3 +64,15 @@ Control the units using settings for unit_system or individual observations.
     cloudbase_units = (foot | meter)
 
 For details about options, see the documentation in the crt.py file.
+
+realmore.txt output
+
+Set realmore_txt to an output filename. realmore_interval is the sampling
+interval in seconds, default 300. The file contains yesterday/today pressure
+extrema, sixteen wind totals and the sampling interval. Archive wind samples
+are weighted by their recorded intervals. These are archive-derived totals,
+not a reconstruction of individual LOOP samples. Pressure and wind use the
+configured display units. When the last ten minutes contain no archive sample,
+realtime.txt uses the current packet for average speed, peak gust and bearing.
+
+Modified 2026-10-22 by weewx-packages.

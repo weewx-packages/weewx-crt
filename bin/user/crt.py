@@ -1,3 +1,4 @@
+# Modified 2026-10-22 by weewx-packages: compatibility and tracker repairs.
 # Copyright 2013-2024 Matthew Wall
 # Distributed under terms of the GPLv3
 # thanks to gary roderick for significant contributions to this code
@@ -81,7 +82,7 @@ from a number of live Cumulus sites:
 
 from __future__ import absolute_import
 import time
-from distutils.version import StrictVersion
+import re
 
 import weewx
 import weewx.almanac
@@ -91,10 +92,27 @@ import weeutil.weeutil
 import weedb
 from weewx.engine import StdService
 
-VERSION = "0.23"
+VERSION = "0.24.0"
+
+def _version_key(value):
+    """Return a release tuple with prereleases before the final release.
+
+    Args:
+        value (str): A WeeWX version, including optional a/b/rc/dev suffixes.
+
+    Returns:
+        tuple[int, int, int, int]: Release numbers followed by a final-release flag.
+    """
+    match = re.match(r'^(\d+)(?:\.(\d+))?(?:\.(\d+))?(.*)$', value)
+    if match is None:
+        raise ValueError('Invalid WeeWX version: %s' % value)
+    release = (int(match.group(1)), int(match.group(2) or 0), int(match.group(3) or 0))
+    prerelease = re.match(r'(?:a|b|rc|dev|[.-]dev)', match.group(4), re.I)
+    return release + (0 if prerelease else 1,)
+
 
 REQUIRED_WEEWX = "3.5.0"
-if StrictVersion(weewx.__version__) < StrictVersion(REQUIRED_WEEWX):
+if _version_key(weewx.__version__) < _version_key(REQUIRED_WEEWX):
     raise weewx.UnsupportedFeature("weewx %s or greater is required, found %s"
                                    % (REQUIRED_WEEWX, weewx.__version__))
 
@@ -253,7 +271,7 @@ def calc_windrun(dbm, ts, db_us):
         if row[1] is not None:
             inc = row[1] * row[0]
             if db_us == weewx.METRICWX:
-                inc *= 60.0
+                inc *= 60.0 / 1000.0
             else:
                 inc /= 60.0
             run += inc
@@ -487,6 +505,10 @@ class CumulusRealTime(StdService):
         self.sunbird_txt = d.get('sunbird_txt')
         if self.sunbird_txt:
             loginf("sunbird output goes to %s" % self.sunbird_txt)
+        self.realmore_txt = d.get('realmore_txt')
+        self.realmore_interval = int(d.get('realmore_interval', 300))
+        if self.realmore_interval <= 0:
+            raise ValueError('realmore_interval must be positive')
         self.gauges_txt = d.get('realtimegauges_txt')
         if self.gauges_txt:
             loginf("gauges output goes to %s" % self.gauges_txt)
@@ -494,7 +516,7 @@ class CumulusRealTime(StdService):
         if (not self.realtime_txt and
             not self.realtime_xml and
             not self.sunbird_txt and
-            not self.gauges_txt):
+            not self.gauges_txt and not self.realmore_txt):
             loginf("aborted: no output files specified")
             return
 
@@ -555,6 +577,8 @@ class CumulusRealTime(StdService):
             if self.realtime_txt:
                 self.write_data(self.realtime_txt,
                                 self.create_realtime_string(data))
+            if self.realmore_txt:
+                self.write_data(self.realmore_txt, self.create_realmore_string(data, dbm))
             if self.realtime_xml:
                 self.write_data(self.realtime_xml,
                                 self.create_realtime_xml(data))
@@ -566,7 +590,7 @@ class CumulusRealTime(StdService):
                                 self.create_gauges_string(data))
         except Exception as e: # FIXME: make this catch more specific
             logdbg("crt: Exception while handling data: %s" % e)
-            traceback('crt: *** ')
+            traceback()
             raise
 
     def write_data(self, filename, data):
@@ -675,6 +699,7 @@ class CumulusRealTime(StdService):
         data['windchill'] = self._cvt_t('windchill', packet, t_u)
         data['appTemp'] = self._cvt_t('appTemp', packet, t_u)
         data['windSpeed'] = self._cvt_w('windSpeed', packet, w_u)
+        data['windGust'] = self._cvt_w('windGust', packet, w_u)
         data['rainRate'] = self._cvt_rr('rainRate', packet, rr_u)
         data['cumulus_windDir'] = clamp_degrees(packet.get('windDir'))
         data['windDir_compass'] = degree_to_compass(packet.get('windDir'))
@@ -738,7 +763,14 @@ class CumulusRealTime(StdService):
             calc_max_gust_10min(dbm, ts), w_u, 'windSpeed', 'group_speed')
         v = calc_avg_winddir_10min(dbm, ts)
         data['10min_avg_wind_bearing'] = v
-        data['avg_wind_dir'] = degree_to_compass(v)
+        # Before the first archive sample, use the current packet for these fields.
+        if data['windSpeed_avg'] is None:
+            data['windSpeed_avg'] = data['windSpeed']
+        if data['10min_high_gust'] is None:
+            data['10min_high_gust'] = data['windGust']
+        if data['10min_avg_wind_bearing'] is None:
+            data['10min_avg_wind_bearing'] = data['cumulus_windDir']
+        data['avg_wind_dir'] = degree_to_compass(data['10min_avg_wind_bearing'])
 
         data['rain_hour'] = self._cvt(
             calc_rain_hour(dbm, ts), r_u, 'rain', 'group_rain')
@@ -769,6 +801,38 @@ class CumulusRealTime(StdService):
         data['sunset'] = alm.sunset.raw
 
         return data
+
+    def create_realmore_string(self, data, dbm):
+        """Return pressure extrema and archive-derived wind totals for realmore.txt.
+
+        Args:
+            data (dict): Current output values, including dateTime.
+            dbm (weewx.manager.Manager): Archive in db_us units.
+
+        Returns:
+            str: Four pressure/time pairs, sixteen wind totals and sample interval.
+        """
+        ts = data['dateTime']
+        today = weeutil.weeutil.startOfDay(ts)
+        yesterday = weeutil.weeutil.startOfDay(today - 1)
+        pressure_unit = self.units.get('pressure', weewx.units.getStandardUnitType(self.pkt_us, 'barometer')[0])
+        wind_unit = self.units.get('wind', weewx.units.getStandardUnitType(self.pkt_us, 'windSpeed')[0])
+        fields = []
+        for start, end in [(yesterday, today), (today, ts)]:
+            rows = list(dbm.genSql('SELECT dateTime,barometer FROM %s WHERE dateTime>? AND dateTime<=? AND barometer IS NOT NULL' % dbm.table_name, (start, end)))
+            for extremum in [min, max]:
+                if rows:
+                    stamp, value = extremum(rows, key=lambda row: row[1])
+                    fields.extend(['%.1f' % self._cvt(value, pressure_unit, 'barometer', 'group_pressure'), time.strftime('%H:%M', time.localtime(stamp))])
+                else:
+                    fields.extend([self.nonesub, '00:00'])
+        bins = [0.0] * 16
+        for speed, direction, interval in dbm.genSql('SELECT windSpeed,windDir,`interval` FROM %s WHERE dateTime>? AND dateTime<=?' % dbm.table_name, (ts - 86400, ts)):
+            if speed is not None and direction is not None and interval is not None:
+                value = self._cvt(speed, wind_unit, 'windSpeed', 'group_speed')
+                bins[int((direction + 11.25) / 22.5) % 16] += value * interval * 60.0 / self.realmore_interval
+        fields.extend([','.join('%.1f' % value for value in bins), str(self.realmore_interval)])
+        return ' '.join(fields)
 
     @staticmethod
     def _fmt_ts(ts, fmt=None):
