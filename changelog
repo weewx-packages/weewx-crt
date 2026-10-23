@@ -1,4 +1,4 @@
-Unreleased
+2026-10-23  0.24.2
   Module docstring: name the sunbird_txt option and process_services, and say that output uses packet or record units.
   Module docstring: list binding, realmore_txt, realmore_interval and sunny_threshold, and refer to README.md for installation.
 
