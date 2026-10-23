@@ -1,5 +1,6 @@
 # Modified 2026-10-22 by weewx-packages: compatibility and tracker repairs.
 # Modified 2026-10-23 by weewx-packages: module docstring matches options, service group and units.
+# Modified 2026-10-23 by weewx-packages: module docstring lists every option and refers to the README for installation.
 # Copyright 2013-2024 Matthew Wall
 # Distributed under terms of the GPLv3
 # thanks to gary roderick for significant contributions to this code
@@ -16,11 +17,12 @@ Optionally it will output to one or more of the following:
   realtime.xml       - XML format of realtime data
   sunbird            - sunrise, sunset, and location information
   realtimegauges.txt - the MX format
+  realmore.txt       - pressure extrema and 24-hour wind totals by direction
 
-To install, put this file in bin/user/crt.py, then add this to your weewx.conf:
+README.md describes the installation. The installer adds this to weewx.conf:
 
 [CumulusRealTime]
-    filename = /path/to/realtime.txt
+    filename = /var/tmp/realtime.txt
 
 [Engine]
     [[Services]]
@@ -36,6 +38,9 @@ Other parameters may be specified to control units and output:
     realtime_xml = /path/to/realtime.xml
     sunbird_txt = /path/to/sunbird.txt
     realtimegauges_txt = /path/to/realtimegaugesT.txt
+    realmore_txt = /path/to/realmore.txt
+    realmore_interval = 300
+    binding = (loop | archive)
     date_separator = /
     none = NULL
     unit_system = (US | METRIC | METRICWX)
@@ -44,6 +49,20 @@ Other parameters may be specified to control units and output:
     pressure_units = (hPa | mbar | inHg)
     rain_units = (mm | inch)
     cloudbase_units = (foot | meter)
+    sunny_threshold = 0.75
+
+filename takes precedence over realtime_txt. realtime.txt is always written,
+to /var/tmp/realtime.txt if neither is set. Each other file is written only
+when its path is set.
+
+binding = loop writes on every LOOP packet. Any other value writes on every
+archive record instead. Default is loop.
+
+realmore_interval is the sample interval in seconds that weights the wind
+totals in realmore.txt. It must be positive. Default is 300.
+
+sunny_threshold sets the sunny flag in realtime.txt when radiation exceeds
+this fraction of maxSolarRad. Default is 0.75.
 
 Note that most of the code in this file is to calculate/lookup data that
 are not directly provided in a LOOP packet.

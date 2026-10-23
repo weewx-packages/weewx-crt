@@ -131,3 +131,11 @@ def test_module_docstring_names_the_options_and_service_group_in_use():
     installer=weecfg.get_extension_installer(str(pathlib.Path(crt.__file__).parents[2]))[1]
     groups=re.findall(r'^        (\w+_services) = .*user\.crt\.CumulusRealTime$',crt.__doc__,re.M)
     assert groups and all(group in installer for group in groups), groups
+
+
+def test_module_docstring_documents_every_option_the_service_reads():
+    source=pathlib.Path(crt.__file__).read_text()
+    documented=set(re.findall(r'^    (\w+) = ',crt.__doc__,re.M))
+    for option in re.findall(r"\bd\.get\('(\w+)'",source):
+        assert option in documented, option
+    assert 'put this file' not in crt.__doc__

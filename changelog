@@ -1,5 +1,6 @@
 Unreleased
   Module docstring: name the sunbird_txt option and process_services, and say that output uses packet or record units.
+  Module docstring: list binding, realmore_txt, realmore_interval and sunny_threshold, and refer to README.md for installation.
 
 2026-10-22  0.24.1
   Correct vector wind direction across north, ignore calm direction samples, and use the local calendar day for yesterday rain across DST transitions.
