@@ -1,4 +1,5 @@
 # Modified 2026-10-22 by weewx-packages: compatibility and tracker repairs.
+# Modified 2026-10-23 by weewx-packages: module docstring matches options, service group and units.
 # Copyright 2013-2024 Matthew Wall
 # Distributed under terms of the GPLv3
 # thanks to gary roderick for significant contributions to this code
@@ -23,16 +24,17 @@ To install, put this file in bin/user/crt.py, then add this to your weewx.conf:
 
 [Engine]
     [[Services]]
-        archive_services = ..., user.crt.CumulusRealTime
+        process_services = ..., user.crt.CumulusRealTime
 
-If no unit_system is specified, the units will be those of the database.
+If no unit_system is specified, the units will be those of each LOOP packet or
+archive record.
 
 Other parameters may be specified to control units and output:
 
 [CumulusRealTime]
     realtime_txt = /path/to/realtime.txt
     realtime_xml = /path/to/realtime.xml
-    sunbird = /path/to/sunbird.txt
+    sunbird_txt = /path/to/sunbird.txt
     realtimegauges_txt = /path/to/realtimegaugesT.txt
     date_separator = /
     none = NULL

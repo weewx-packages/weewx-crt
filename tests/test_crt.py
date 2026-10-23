@@ -1,10 +1,12 @@
 import importlib.util
 import os
 import pathlib
+import re
 import sqlite3
 import time
 
 import pytest
+import weecfg
 import weewx
 import crt
 
@@ -120,3 +122,12 @@ def test_realmore_has_pressure_extrema_and_sixteen_wind_bins():
     assert sum(bins)==9
     assert output[9]=='300'
     assert float(output[4])==1000
+
+
+def test_module_docstring_names_the_options_and_service_group_in_use():
+    source=pathlib.Path(crt.__file__).read_text()
+    for option in re.findall(r'^    (\w+) = ',crt.__doc__,re.M):
+        assert "'%s'"%option in source or option[:-len('_units')] in crt.UNITS, option
+    installer=weecfg.get_extension_installer(str(pathlib.Path(crt.__file__).parents[2]))[1]
+    groups=re.findall(r'^        (\w+_services) = .*user\.crt\.CumulusRealTime$',crt.__doc__,re.M)
+    assert groups and all(group in installer for group in groups), groups
