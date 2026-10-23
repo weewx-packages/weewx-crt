@@ -114,7 +114,7 @@ import weeutil.weeutil
 import weedb
 from weewx.engine import StdService
 
-VERSION = "0.24.1"
+VERSION = "0.24.2"
 
 def _version_key(value):
     """Return a release tuple with prereleases before the final release.
